@@ -1,0 +1,88 @@
+#include "mcp3204.h"
+
+unsigned char ch0 = 0;
+unsigned char ch1 = 1;
+unsigned char ch2 = 2;
+unsigned char ch3 = 3;
+
+mcpADC m;
+unsigned int dcount;
+void setup() {
+  // put your setup code here, to run once:
+ Serial.begin(9600);
+  m.spi_init();
+  m.ss_high();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+  dcount = m.mcp_read(ch1);
+  Serial.println(dcount);
+  delay(500);
+
+}
+
+...........................
+#ifndef __mcp_3204_h__
+#define __mcp_3204_h__
+#include<avr/io.h>
+
+class mcpADC
+{
+    unsigned char _ch;
+
+
+  public:
+    
+    unsigned int mcp_read(unsigned char ch)
+    {
+      unsigned char msb, lsb, controlbyte;
+      unsigned int temp;
+      controlbyte = 0x06;
+
+      if(ch>3)
+         controlbyte |=0x01;
+      
+      _ch = ch;
+      ss_low();
+      spi_transfer(controlbyte);
+      msb = spi_transfer(_ch<<6);
+      lsb = spi_transfer(0x00);
+      ss_high();
+
+      temp = ((0x0f & msb) << 8) | (lsb & 0xff);
+      return temp;
+
+    }
+
+    void ss_low(void)
+    {
+      PORTB &= ~(1 << PORTB2);
+    }
+    void ss_high(void)
+    {
+      PORTB |= (1 << PORTB2);
+    }
+
+    void spi_init(void)
+    {
+      DDRB |= (1 << DDB2) | (1 << DDB3) | (1 << DDB5);
+      DDRB &= ~(1 << DDB4);
+      SPCR |= (0 << SPIE) | (1 << SPE) | (0 << DORD) | (1 << MSTR) | (0 << CPOL) | (0 << CPHA) | (0 << SPR1) | (1 << SPR0);
+    }
+
+    unsigned int spi_transfer(unsigned char d)
+    {
+
+      SPDR = d;
+      while (!(SPSR & (1 << SPIF)));
+
+      return SPDR;
+
+    }
+
+};
+
+
+#endif
